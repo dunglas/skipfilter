@@ -7,14 +7,14 @@ import (
 
 func TestSkipFilter(t *testing.T) {
 	t.Run("New", func(t *testing.T) {
-		var sf *SkipFilter
+		var sf *SkipFilter[int, int]
 		t.Run("success", func(t *testing.T) {
-			test := func(value interface{}, filter interface{}) bool {
+			test := func(value, filter int) bool {
 				return true
 			}
 			for i, n := range []int{-1, 0, 10} {
 				t.Run(fmt.Sprintf("size %d", n), func(t *testing.T) {
-					sf = New(test, n)
+					sf = New[int, int](test, n)
 					if sf == nil {
 						t.Fatalf("New returned nil (%d)", i)
 					}
@@ -22,9 +22,9 @@ func TestSkipFilter(t *testing.T) {
 			}
 		})
 	})
-	modTest := func(value interface{}, filter interface{}) bool {
+	modTest := func(value, filter int) bool {
 		// value passes filter if value is multiple of filter
-		return value.(int)%filter.(int) == 0
+		return value%filter == 0
 	}
 	t.Run("Add", func(t *testing.T) {
 		sf := New(modTest, 10)
@@ -95,7 +95,7 @@ func TestSkipFilter(t *testing.T) {
 		}
 		t.Run("success", func(t *testing.T) {
 			var n uint64
-			id := sf.Walk(5, func(i interface{}) bool {
+			id := sf.Walk(5, func(i int) bool {
 				n++
 				return n < 5
 			})
@@ -109,7 +109,7 @@ func TestSkipFilter(t *testing.T) {
 		t.Run("removal", func(t *testing.T) {
 			sf.Remove(0)
 			var n uint64
-			id := sf.Walk(5, func(i interface{}) bool {
+			id := sf.Walk(5, func(i int) bool {
 				n++
 				return n < 5
 			})
@@ -128,7 +128,7 @@ func TestSkipFilter(t *testing.T) {
 		}
 		t.Run("success", func(t *testing.T) {
 			var n uint64
-			id := sf.Walk(0, func(i interface{}) bool {
+			id := sf.Walk(0, func(i int) bool {
 				n++
 				return true
 			})
@@ -142,7 +142,7 @@ func TestSkipFilter(t *testing.T) {
 		t.Run("removal", func(t *testing.T) {
 			sf.Remove(0)
 			var n uint64
-			id := sf.Walk(0, func(i interface{}) bool {
+			id := sf.Walk(0, func(i int) bool {
 				n++
 				return true
 			})
@@ -156,7 +156,7 @@ func TestSkipFilter(t *testing.T) {
 		sf = New(modTest, 10)
 		t.Run("empty", func(t *testing.T) {
 			var n uint64
-			id := sf.Walk(0, func(i interface{}) bool {
+			id := sf.Walk(0, func(i int) bool {
 				n++
 				return true
 			})
@@ -170,7 +170,7 @@ func TestSkipFilter(t *testing.T) {
 		t.Run("one", func(t *testing.T) {
 			sf.Add(0)
 			var n uint64
-			id := sf.Walk(0, func(i interface{}) bool {
+			id := sf.Walk(0, func(i int) bool {
 				n++
 				return true
 			})
@@ -185,7 +185,7 @@ func TestSkipFilter(t *testing.T) {
 }
 
 func TestEntry(t *testing.T) {
-	e := &entry{123, "test"}
+	e := &entry[string]{123, "test"}
 	t.Run("ExtractKey", func(t *testing.T) {
 		if e.ExtractKey() != float64(123) {
 			t.Fatalf(`Expected ExtractKey to return 123, received (%f)`, e.ExtractKey())

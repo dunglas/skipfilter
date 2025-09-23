@@ -11,13 +11,13 @@ import (
 	"github.com/hashicorp/golang-lru"
 )
 
-// SkipFilter combines a skip list with an lru cache of roaring bitmaps
-type SkipFilter struct {
+// SkipFilter combines a skip list with a lru cache of roaring bitmaps
+type SkipFilter[V any, F any] struct {
 	i     uint64
 	idx   map[interface{}]uint64
 	list  skiplist.SkipList
 	cache *lru.Cache
-	test  func(interface{}, interface{}) bool
+	test  func(V, F) bool
 	mutex sync.RWMutex
 }
 
@@ -25,12 +25,12 @@ type SkipFilter struct {
 //   test - should return true if the value passes the provided filter.
 //   size - controls the size of the LRU cache. Defaults to 100,000 if 0 or less.
 //          should be tuned to match or exceed the expected filter cardinality.
-func New(test func(value interface{}, filter interface{}) bool, size int) *SkipFilter {
+func New[V any, F any](test func(value V, filter F) bool, size int) *SkipFilter[V, F] {
 	if size <= 0 {
 		size = 1e5
 	}
 	cache, _ := lru.New(size)
-	return &SkipFilter{
+	return &SkipFilter[V, F]{
 		idx:   make(map[interface{}]uint64),
 		list:  skiplist.New(),
 		cache: cache,
@@ -39,34 +39,34 @@ func New(test func(value interface{}, filter interface{}) bool, size int) *SkipF
 }
 
 // Add adds a value to the set
-func (sf *SkipFilter) Add(value interface{}) {
+func (sf *SkipFilter[V, F]) Add(value V) {
 	sf.mutex.Lock()
 	defer sf.mutex.Unlock()
-	el := &entry{sf.i, value}
+	el := &entry[V]{sf.i, value}
 	sf.list.Insert(el)
 	sf.idx[value] = sf.i
 	sf.i++
 }
 
 // Remove removes a value from the set
-func (sf *SkipFilter) Remove(value interface{}) {
+func (sf *SkipFilter[V, F]) Remove(value V) {
 	sf.mutex.Lock()
 	defer sf.mutex.Unlock()
 	if id, ok := sf.idx[value]; ok {
-		sf.list.Delete(&entry{id: id})
+		sf.list.Delete(&entry[V]{id: id})
 		delete(sf.idx, value)
 	}
 }
 
 // Len returns the number of values in the set
-func (sf *SkipFilter) Len() int {
+func (sf *SkipFilter[V, F]) Len() int {
 	sf.mutex.RLock()
 	defer sf.mutex.RUnlock()
 	return sf.list.GetNodeCount()
 }
 
 // MatchAny returns a slice of values in the set matching any of the provided filters
-func (sf *SkipFilter) MatchAny(filterKeys ...interface{}) []interface{} {
+func (sf *SkipFilter[V, F]) MatchAny(filterKeys ...F) []V {
 	sf.mutex.RLock()
 	defer sf.mutex.RUnlock()
 	var sets = make([]*roaring64.Bitmap, len(filterKeys))
@@ -93,22 +93,22 @@ func (sf *SkipFilter) MatchAny(filterKeys ...interface{}) []interface{} {
 // Walk executes callback for each value in the set beginning at `start` index.
 // Return true in callback to continue iterating, false to stop.
 // Returned uint64 is index of `next` element (send as `start` to continue iterating)
-func (sf *SkipFilter) Walk(start uint64, callback func(val interface{}) bool) uint64 {
+func (sf *SkipFilter[V, F]) Walk(start uint64, callback func(val V) bool) uint64 {
 	sf.mutex.RLock()
 	defer sf.mutex.RUnlock()
 	var i uint64
 	var id = start
 	var prev uint64
 	var first = true
-	el, ok := sf.list.FindGreaterOrEqual(&entry{id: start})
+	el, ok := sf.list.FindGreaterOrEqual(&entry[V]{id: start})
 	for ok && el != nil {
-		if id = el.GetValue().(*entry).id; !first && id <= prev {
+		if id = el.GetValue().(*entry[V]).id; !first && id <= prev {
 			// skiplist loops back to first element so we have to detect loop and break manually
 			id = prev + 1
 			break
 		}
 		i++
-		if !callback(el.GetValue().(*entry).val) {
+		if !callback(el.GetValue().(*entry[V]).val) {
 			id++
 			break
 		}
@@ -119,7 +119,7 @@ func (sf *SkipFilter) Walk(start uint64, callback func(val interface{}) bool) ui
 	return id
 }
 
-func (sf *SkipFilter) getFilter(k interface{}) *filter {
+func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 	var f *filter
 	val, ok := sf.cache.Get(k)
 	if ok {
@@ -134,12 +134,12 @@ func (sf *SkipFilter) getFilter(k interface{}) *filter {
 	if atomic.LoadUint64(&f.i) < sf.i {
 		f.mutex.Lock()
 		defer f.mutex.Unlock()
-		for el, ok := sf.list.FindGreaterOrEqual(&entry{id: f.i}); ok && el != nil; el = sf.list.Next(el) {
-			if id = el.GetValue().(*entry).id; !first && id <= prev {
+		for el, ok := sf.list.FindGreaterOrEqual(&entry[V]{id: f.i}); ok && el != nil; el = sf.list.Next(el) {
+			if id = el.GetValue().(*entry[V]).id; !first && id <= prev {
 				// skiplist loops back to first element so we have to detect loop and break manually
 				break
 			}
-			if sf.test(el.GetValue().(*entry).val, k) {
+			if sf.test(el.GetValue().(*entry[V]).val, k) {
 				f.set.Add(id)
 			}
 			prev = id
@@ -150,18 +150,18 @@ func (sf *SkipFilter) getFilter(k interface{}) *filter {
 	return f
 }
 
-func (sf *SkipFilter) getValues(set *roaring64.Bitmap) ([]interface{}, []uint64) {
+func (sf *SkipFilter[V, F]) getValues(set *roaring64.Bitmap) ([]V, []uint64) {
 	idBuf := make([]uint64, 512)
 	iter := set.ManyIterator()
-	values := []interface{}{}
+	values := []V{}
 	notfound := []uint64{}
-	e := &entry{}
+	e := &entry[V]{}
 	for n := iter.NextMany(idBuf); n > 0; n = iter.NextMany(idBuf) {
 		for i := 0; i < n; i++ {
 			e.id = idBuf[i]
 			el, ok := sf.list.Find(e)
 			if ok {
-				values = append(values, el.GetValue().(*entry).val)
+				values = append(values, el.GetValue().(*entry[V]).val)
 			} else {
 				notfound = append(notfound, idBuf[i])
 			}
@@ -170,16 +170,16 @@ func (sf *SkipFilter) getValues(set *roaring64.Bitmap) ([]interface{}, []uint64)
 	return values, notfound
 }
 
-type entry struct {
+type entry[V any] struct {
 	id  uint64
-	val interface{}
+	val V
 }
 
-func (e *entry) ExtractKey() float64 {
+func (e *entry[V]) ExtractKey() float64 {
 	return float64(e.id)
 }
 
-func (e *entry) String() string {
+func (e *entry[V]) String() string {
 	return fmt.Sprintf("%16x", e.id)
 }
 

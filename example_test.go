@@ -7,8 +7,8 @@ import (
 )
 
 func ExampleNew() {
-	sf := skipfilter.New(func(value interface{}, filter interface{}) bool {
-		return value.(int)%filter.(int) == 0
+	sf := skipfilter.New(func(value, filter int) bool {
+		return value%filter == 0
 	}, 10)
 	fmt.Printf("%d", sf.Len())
 	// Output:
@@ -16,8 +16,8 @@ func ExampleNew() {
 }
 
 func ExampleSkipFilter_Add() {
-	sf := skipfilter.New(func(value interface{}, filter interface{}) bool {
-		return value.(int)%filter.(int) == 0
+	sf := skipfilter.New(func(value, filter int) bool {
+		return value%filter == 0
 	}, 10)
 	for i := 0; i < 10; i++ {
 		sf.Add(i)
@@ -29,8 +29,8 @@ func ExampleSkipFilter_Add() {
 }
 
 func ExampleSkipFilter_MatchAny() {
-	sf := skipfilter.New(func(value interface{}, filter interface{}) bool {
-		return value.(int)%filter.(int) == 0
+	sf := skipfilter.New(func(value, filter int) bool {
+		return value%filter == 0
 	}, 10)
 	for i := 0; i < 10; i++ {
 		sf.Add(i)
@@ -43,13 +43,13 @@ func ExampleSkipFilter_MatchAny() {
 }
 
 func ExampleSkipFilter_Walk_all() {
-	sf := skipfilter.New(nil, 10)
+	sf := skipfilter.New[int, int](nil, 10)
 	for i := 0; i < 10; i++ {
 		sf.Add(i)
 	}
 	var n []int
-	sf.Walk(0, func(v interface{}) bool {
-		n = append(n, v.(int))
+	sf.Walk(0, func(v int) bool {
+		n = append(n, v)
 		return true
 	})
 	fmt.Printf("%d", len(n))
@@ -58,13 +58,13 @@ func ExampleSkipFilter_Walk_all() {
 }
 
 func ExampleSkipFilter_Walk_limit() {
-	sf := skipfilter.New(nil, 10)
+	sf := skipfilter.New[int, int](nil, 10)
 	for i := 0; i < 10; i++ {
 		sf.Add(i)
 	}
 	var n []int
-	sf.Walk(0, func(v interface{}) bool {
-		n = append(n, v.(int))
+	sf.Walk(0, func(v int) bool {
+		n = append(n, v)
 		return len(n) < 5
 	})
 	fmt.Printf("%d", len(n))
@@ -73,13 +73,13 @@ func ExampleSkipFilter_Walk_limit() {
 }
 
 func ExampleSkipFilter_Walk_start() {
-	sf := skipfilter.New(nil, 10)
+	sf := skipfilter.New[int, int](nil, 10)
 	for i := 0; i < 10; i++ {
 		sf.Add(i)
 	}
 	var n []int
-	sf.Walk(5, func(v interface{}) bool {
-		n = append(n, v.(int))
+	sf.Walk(5, func(v int) bool {
+		n = append(n, v)
 		return true
 	})
 	fmt.Printf("%d", len(n))
