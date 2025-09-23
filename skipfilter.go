@@ -8,15 +8,15 @@ import (
 
 	"github.com/MauriceGit/skiplist"
 	"github.com/RoaringBitmap/roaring/roaring64"
-	"github.com/hashicorp/golang-lru"
+	"github.com/hashicorp/golang-lru/v2"
 )
 
 // SkipFilter combines a skip list with a lru cache of roaring bitmaps
-type SkipFilter[V any, F any] struct {
+type SkipFilter[V any, F comparable] struct {
 	i     uint64
 	idx   map[interface{}]uint64
 	list  skiplist.SkipList
-	cache *lru.Cache
+	cache *lru.Cache[F, *filter]
 	test  func(V, F) bool
 	mutex sync.RWMutex
 }
@@ -25,11 +25,11 @@ type SkipFilter[V any, F any] struct {
 //   test - should return true if the value passes the provided filter.
 //   size - controls the size of the LRU cache. Defaults to 100,000 if 0 or less.
 //          should be tuned to match or exceed the expected filter cardinality.
-func New[V any, F any](test func(value V, filter F) bool, size int) *SkipFilter[V, F] {
+func New[V any, F comparable](test func(value V, filter F) bool, size int) *SkipFilter[V, F] {
 	if size <= 0 {
 		size = 1e5
 	}
-	cache, _ := lru.New(size)
+	cache, _ := lru.New[F, *filter](size)
 	return &SkipFilter[V, F]{
 		idx:   make(map[interface{}]uint64),
 		list:  skiplist.New(),
@@ -123,7 +123,7 @@ func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 	var f *filter
 	val, ok := sf.cache.Get(k)
 	if ok {
-		f = val.(*filter)
+		f = val
 	} else {
 		f = &filter{i: 0, set: roaring64.New()}
 		sf.cache.Add(k, f)
