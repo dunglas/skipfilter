@@ -4,7 +4,7 @@ go 1.18
 
 require (
 	github.com/MauriceGit/skiplist v0.0.0-20211105230623-77f5c8d3e145
-	github.com/RoaringBitmap/roaring v1.9.4
+	github.com/RoaringBitmap/roaring/v2 v2.10.0
 	github.com/hashicorp/golang-lru/v2 v2.0.7
 )
 

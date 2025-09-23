@@ -7,7 +7,7 @@ import (
 	"sync/atomic"
 
 	"github.com/MauriceGit/skiplist"
-	"github.com/RoaringBitmap/roaring/roaring64"
+	"github.com/RoaringBitmap/roaring/v2/roaring64"
 	"github.com/hashicorp/golang-lru/v2"
 )
 
