@@ -3,7 +3,7 @@ package skipfilter_test
 import (
 	"testing"
 
-	"github.com/kevburnsjr/skipfilter"
+	"github.com/dunglas/skipfilter"
 )
 
 func BenchmarkSkipFilter_MatchAny_Read(b *testing.B) {

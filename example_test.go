@@ -3,7 +3,7 @@ package skipfilter_test
 import (
 	"fmt"
 
-	"github.com/kevburnsjr/skipfilter"
+	"github.com/dunglas/skipfilter"
 )
 
 func ExampleNew() {

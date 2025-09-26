@@ -1,4 +1,4 @@
-module github.com/kevburnsjr/skipfilter
+module github.com/dunglas/skipfilter
 
 go 1.24.0
 
