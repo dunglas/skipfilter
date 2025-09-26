@@ -8,7 +8,7 @@ import (
 
 	"github.com/MauriceGit/skiplist"
 	"github.com/RoaringBitmap/roaring/v2/roaring64"
-	"github.com/hashicorp/golang-lru/v2"
+	"github.com/maypok86/otter/v2"
 )
 
 // SkipFilter combines a skip list with a lru cache of roaring bitmaps
@@ -16,7 +16,7 @@ type SkipFilter[V any, F comparable] struct {
 	i     uint64
 	idx   map[interface{}]uint64
 	list  skiplist.SkipList
-	cache *lru.Cache[F, *filter]
+	cache *otter.Cache[F, *filter]
 	test  func(V, F) bool
 	mutex sync.RWMutex
 }
@@ -29,7 +29,7 @@ func New[V any, F comparable](test func(value V, filter F) bool, size int) *Skip
 	if size <= 0 {
 		size = 1e5
 	}
-	cache, _ := lru.New[F, *filter](size)
+	cache := otter.Must(&otter.Options[F, *filter]{})
 	return &SkipFilter[V, F]{
 		idx:   make(map[interface{}]uint64),
 		list:  skiplist.New(),
@@ -121,12 +121,12 @@ func (sf *SkipFilter[V, F]) Walk(start uint64, callback func(val V) bool) uint64
 
 func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 	var f *filter
-	val, ok := sf.cache.Get(k)
+	val, ok := sf.cache.GetIfPresent(k)
 	if ok {
 		f = val
 	} else {
 		f = &filter{i: 0, set: roaring64.New()}
-		sf.cache.Add(k, f)
+		sf.cache.Set(k, f)
 	}
 	var id uint64
 	var prev uint64
