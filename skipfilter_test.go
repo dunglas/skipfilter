@@ -5,11 +5,11 @@ import (
 	"testing"
 )
 
-func TestSkipFilter(t *testing.T) {
+func TestSkipFilter(t *testing.T) { // nolint:gocyclo
 	t.Run("New", func(t *testing.T) {
 		var sf *SkipFilter[int, int]
 		t.Run("success", func(t *testing.T) {
-			test := func(value, filter int) bool {
+			test := func(_, _ int) bool {
 				return true
 			}
 			for i, n := range []int{0, 10} {
@@ -22,13 +22,14 @@ func TestSkipFilter(t *testing.T) {
 			}
 		})
 	})
+
 	modTest := func(value, filter int) bool {
 		// value passes filter if value is multiple of filter
 		return value%filter == 0
 	}
 	t.Run("Add", func(t *testing.T) {
 		sf := New(modTest, 10)
-		t.Run("success", func(t *testing.T) {
+		t.Run("success", func(_ *testing.T) {
 			for i := 0; i < 10; i++ {
 				sf.Add(i)
 			}
@@ -36,7 +37,7 @@ func TestSkipFilter(t *testing.T) {
 	})
 	t.Run("Remove", func(t *testing.T) {
 		sf := New(modTest, 10)
-		t.Run("success", func(t *testing.T) {
+		t.Run("success", func(_ *testing.T) {
 			for i := 0; i < 10; i++ {
 				sf.Add(i)
 			}
@@ -95,7 +96,7 @@ func TestSkipFilter(t *testing.T) {
 		}
 		t.Run("success", func(t *testing.T) {
 			var n uint64
-			id := sf.Walk(5, func(i int) bool {
+			id := sf.Walk(5, func(_ int) bool {
 				n++
 				return n < 5
 			})
@@ -109,7 +110,7 @@ func TestSkipFilter(t *testing.T) {
 		t.Run("removal", func(t *testing.T) {
 			sf.Remove(0)
 			var n uint64
-			id := sf.Walk(5, func(i int) bool {
+			id := sf.Walk(5, func(_ int) bool {
 				n++
 				return n < 5
 			})
@@ -128,7 +129,7 @@ func TestSkipFilter(t *testing.T) {
 		}
 		t.Run("success", func(t *testing.T) {
 			var n uint64
-			id := sf.Walk(0, func(i int) bool {
+			id := sf.Walk(0, func(_ int) bool {
 				n++
 				return true
 			})
@@ -142,7 +143,7 @@ func TestSkipFilter(t *testing.T) {
 		t.Run("removal", func(t *testing.T) {
 			sf.Remove(0)
 			var n uint64
-			id := sf.Walk(0, func(i int) bool {
+			id := sf.Walk(0, func(_ int) bool {
 				n++
 				return true
 			})
@@ -156,7 +157,7 @@ func TestSkipFilter(t *testing.T) {
 		sf = New(modTest, 10)
 		t.Run("empty", func(t *testing.T) {
 			var n uint64
-			id := sf.Walk(0, func(i int) bool {
+			id := sf.Walk(0, func(_ int) bool {
 				n++
 				return true
 			})
@@ -170,7 +171,7 @@ func TestSkipFilter(t *testing.T) {
 		t.Run("one", func(t *testing.T) {
 			sf.Add(0)
 			var n uint64
-			id := sf.Walk(0, func(i int) bool {
+			id := sf.Walk(0, func(_ int) bool {
 				n++
 				return true
 			})

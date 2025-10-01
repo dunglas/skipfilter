@@ -22,9 +22,10 @@ type SkipFilter[V any, F comparable] struct {
 }
 
 // New creates a new SkipFilter.
-//   test - should return true if the value passes the provided filter.
-//   maximumSize - controls the maximum size of the cache. Defaults to unlimited.
-//          should be tuned to match or exceed the expected filter cardinality.
+//
+// The test function should return true if the value passes the provided filter.
+// The maximumSize parameter controls the maximum size of the cache. Defaults to unlimited.
+// Should be tuned to match or exceed the expected filter cardinality.
 func New[V any, F comparable](test func(value V, filter F) bool, maximumSize int) *SkipFilter[V, F] {
 	cache := otter.Must(&otter.Options[F, *filter]{MaximumSize: maximumSize})
 	return &SkipFilter[V, F]{
