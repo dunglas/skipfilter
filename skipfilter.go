@@ -11,7 +11,7 @@ import (
 	"github.com/maypok86/otter/v2"
 )
 
-// SkipFilter combines a skip list with a lru cache of roaring bitmaps
+// SkipFilter combines a skip list with a cache of roaring bitmaps
 type SkipFilter[V any, F comparable] struct {
 	i     uint64
 	idx   map[interface{}]uint64
@@ -23,13 +23,10 @@ type SkipFilter[V any, F comparable] struct {
 
 // New creates a new SkipFilter.
 //   test - should return true if the value passes the provided filter.
-//   size - controls the size of the LRU cache. Defaults to 100,000 if 0 or less.
+//   maximumSize - controls the maximum size of the cache. Defaults to unlimited.
 //          should be tuned to match or exceed the expected filter cardinality.
-func New[V any, F comparable](test func(value V, filter F) bool, size int) *SkipFilter[V, F] {
-	if size <= 0 {
-		size = 1e5
-	}
-	cache := otter.Must(&otter.Options[F, *filter]{})
+func New[V any, F comparable](test func(value V, filter F) bool, maximumSize int) *SkipFilter[V, F] {
+	cache := otter.Must(&otter.Options[F, *filter]{MaximumSize: maximumSize})
 	return &SkipFilter[V, F]{
 		idx:   make(map[interface{}]uint64),
 		list:  skiplist.New(),
