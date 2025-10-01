@@ -2,8 +2,8 @@
 
 This package provides a data structure that combines a skip list with a roaring bitmap cache.
 
-[![Go Reference](https://pkg.go.dev/badge/github.com/dunglas/skipfilter.svg)](https://pkg.go.dev/github.com/kevburnsjr/skipfilter)
-[![Go Report Card](https://goreportcard.com/badge/github.com/dunglas/skipfilter?3)](https://goreportcard.com/report/github.com/kevburnsjr/skipfilter)
+[![Go Reference](https://pkg.go.dev/badge/github.com/dunglas/skipfilter.svg)](https://pkg.go.dev/github.com/dunglas/skipfilter)
+[![Go Report Card](https://goreportcard.com/badge/github.com/dunglas/skipfilter)](https://goreportcard.com/report/github.com/dunglas/skipfilter)
 
 > [!NOTE]
 >
