@@ -27,7 +27,9 @@ type SkipFilter[V any, F comparable] struct {
 // The maximumSize parameter controls the maximum size of the cache. Defaults to unlimited.
 // Should be tuned to match or exceed the expected filter cardinality.
 func New[V any, F comparable](test func(value V, filter F) bool, maximumSize int) *SkipFilter[V, F] {
-	cache := otter.Must(&otter.Options[F, *filter]{MaximumSize: maximumSize})
+	cache := otter.Must(&otter.Options[F, *filter]{
+		MaximumSize: maximumSize,
+	})
 	return &SkipFilter[V, F]{
 		idx:   make(map[interface{}]uint64),
 		list:  skiplist.New(),
@@ -73,7 +75,7 @@ func (sf *SkipFilter[V, F]) MatchAny(filterKeys ...F) []V {
 		filters[i] = sf.getFilter(k)
 		sets[i] = filters[i].set
 	}
-	var set = roaring64.ParOr(runtime.NumCPU(), sets...)
+	var set = roaring64.ParOr(0, sets...)
 	values, notfound := sf.getValues(set)
 	if len(notfound) > 0 {
 		// Clean up references to removed values
@@ -85,6 +87,7 @@ func (sf *SkipFilter[V, F]) MatchAny(filterKeys ...F) []V {
 			f.mutex.Unlock()
 		}
 	}
+
 	return values
 }
 
@@ -117,13 +120,24 @@ func (sf *SkipFilter[V, F]) Walk(start uint64, callback func(val V) bool) uint64
 	return id
 }
 
+var roaringPool = sync.Pool{
+	New: func() any {
+		return roaring64.New()
+	},
+}
+
 func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 	var f *filter
 	val, ok := sf.cache.GetIfPresent(k)
 	if ok {
 		f = val
 	} else {
-		f = &filter{i: 0, set: roaring64.New()}
+		f = &filter{i: 0, set: roaringPool.Get().(*roaring64.Bitmap)}
+		runtime.AddCleanup(f, func(s *roaring64.Bitmap) {
+			s.Clear()
+			roaringPool.Put(s)
+		}, f.set)
+
 		sf.cache.Set(k, f)
 	}
 	var id uint64
