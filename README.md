@@ -17,6 +17,6 @@ In this case, the skip list provides an efficient discontinuous slice of subscri
 topic provides an efficient ordered discontinuous set of all subscribers that have indicated that they wish to
 receive messages on the topic.
 
-Filter bitmaps are stored in a cache of variable size (default to unlimited).
+Filter bitmaps are stored in a cache of variable size (default to unlimited, set to a negative value to disable the cache).
 
 This package is thread-safe.

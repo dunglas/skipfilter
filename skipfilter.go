@@ -24,16 +24,20 @@ type SkipFilter[V any, F comparable] struct {
 // New creates a new SkipFilter.
 //
 // The test function should return true if the value passes the provided filter.
-// The maximumSize parameter controls the maximum size of the cache. Defaults to unlimited.
+// The maximumSize parameter controls the maximum size of the cache. Defaults to unlimited. Set to -1 to disable.
 // Should be tuned to match or exceed the expected filter cardinality.
 func New[V any, F comparable](test func(value V, filter F) bool, maximumSize int) *SkipFilter[V, F] {
-	cache := otter.Must(&otter.Options[F, *filter]{MaximumSize: maximumSize})
-	return &SkipFilter[V, F]{
-		idx:   make(map[interface{}]uint64),
-		list:  skiplist.New(),
-		cache: cache,
-		test:  test,
+	sf := &SkipFilter[V, F]{
+		idx:  make(map[interface{}]uint64),
+		list: skiplist.New(),
+		test: test,
 	}
+
+	if maximumSize >= 0 {
+		sf.cache = otter.Must(&otter.Options[F, *filter]{MaximumSize: maximumSize})
+	}
+
+	return sf
 }
 
 // Add adds a value to the set
@@ -119,13 +123,21 @@ func (sf *SkipFilter[V, F]) Walk(start uint64, callback func(val V) bool) uint64
 
 func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 	var f *filter
-	val, ok := sf.cache.GetIfPresent(k)
-	if ok {
-		f = val
-	} else {
-		f = &filter{i: 0, set: roaring64.New()}
-		sf.cache.Set(k, f)
+
+	if sf.cache != nil {
+		if val, ok := sf.cache.GetIfPresent(k); ok {
+			f = val
+		}
 	}
+
+	if f == nil {
+		f = &filter{i: 0, set: roaring64.New()}
+
+		if sf.cache != nil {
+			sf.cache.Set(k, f)
+		}
+	}
+
 	var id uint64
 	var prev uint64
 	var first = true

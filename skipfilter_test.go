@@ -12,7 +12,7 @@ func TestSkipFilter(t *testing.T) { // nolint:gocyclo
 			test := func(_, _ int) bool {
 				return true
 			}
-			for i, n := range []int{0, 10} {
+			for i, n := range []int{-1, 0, 10} {
 				t.Run(fmt.Sprintf("size %d", n), func(t *testing.T) {
 					sf = New[int, int](test, n)
 					if sf == nil {
