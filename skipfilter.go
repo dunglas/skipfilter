@@ -2,7 +2,6 @@ package skipfilter
 
 import (
 	"fmt"
-	"runtime"
 	"sync"
 	"sync/atomic"
 
@@ -67,13 +66,20 @@ func (sf *SkipFilter[V, F]) Len() int {
 func (sf *SkipFilter[V, F]) MatchAny(filterKeys ...F) []V {
 	sf.mutex.RLock()
 	defer sf.mutex.RUnlock()
-	var sets = make([]*roaring64.Bitmap, len(filterKeys))
 	var filters = make([]*filter, len(filterKeys))
+	// The union is built into a bitmap of our own, each filter read under its
+	// own lock: sf.mutex is shared, so a concurrent MatchAny may be pruning
+	// these very bitmaps below. Handing the filters' bitmaps to ParOr instead
+	// read them unguarded, and ParOr returns the sole input as is when given
+	// one, which then aliased a filter another call was still mutating.
+	var set = roaring64.New()
 	for i, k := range filterKeys {
-		filters[i] = sf.getFilter(k)
-		sets[i] = filters[i].set
+		f := sf.getFilter(k)
+		filters[i] = f
+		f.mutex.RLock()
+		set.Or(f.set)
+		f.mutex.RUnlock()
 	}
-	var set = roaring64.ParOr(runtime.NumCPU(), sets...)
 	values, notfound := sf.getValues(set)
 	if len(notfound) > 0 {
 		// Clean up references to removed values
@@ -132,6 +138,12 @@ func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 	if atomic.LoadUint64(&f.i) < sf.i {
 		f.mutex.Lock()
 		defer f.mutex.Unlock()
+		// Re-read now that the write lock is held: another caller may have
+		// brought the filter up to date between the check and the lock, and
+		// re-scanning from a stale f.i would repeat its work.
+		if atomic.LoadUint64(&f.i) >= sf.i {
+			return f
+		}
 		for el, ok := sf.list.FindGreaterOrEqual(&entry[V]{id: f.i}); ok && el != nil; el = sf.list.Next(el) {
 			if id = el.GetValue().(*entry[V]).id; !first && id <= prev {
 				// skiplist loops back to first element so we have to detect loop and break manually
@@ -143,7 +155,8 @@ func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 			prev = id
 			first = false
 		}
-		f.i = sf.i
+		// Paired with the atomic.LoadUint64 above, which runs without f.mutex.
+		atomic.StoreUint64(&f.i, sf.i)
 	}
 	return f
 }
