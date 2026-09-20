@@ -89,6 +89,23 @@ func TestSkipFilter(t *testing.T) { // nolint:gocyclo
 			}
 		})
 	})
+	t.Run("no cache", func(t *testing.T) {
+		sf := New(modTest, -1)
+		for i := 0; i < 10; i++ {
+			sf.Add(i)
+		}
+		if res := sf.MatchAny(2); len(res) != 5 {
+			t.Fatalf("Expected 5 results, received (%d)", len(res))
+		}
+		sf.Add(10)
+		if res := sf.MatchAny(2); len(res) != 6 {
+			t.Fatalf("Expected 6 results, received (%d)", len(res))
+		}
+		sf.Remove(0)
+		if res := sf.MatchAny(2); len(res) != 5 {
+			t.Fatalf("Expected 5 results, received (%d)", len(res))
+		}
+	})
 	t.Run("Walk", func(t *testing.T) {
 		sf := New(modTest, 10)
 		for i := 0; i < 10; i++ {
