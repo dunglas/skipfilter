@@ -24,8 +24,9 @@ type SkipFilter[V any, F comparable] struct {
 // New creates a new SkipFilter.
 //
 // The test function should return true if the value passes the provided filter.
-// The maximumSize parameter controls the maximum size of the cache. Defaults to unlimited. Set to -1 to disable.
-// Should be tuned to match or exceed the expected filter cardinality.
+// The maximumSize parameter controls the maximum size of the cache: 0 (the default) keeps every
+// filter bitmap, a negative value disables the cache. When positive, it should be tuned to match
+// or exceed the expected filter cardinality.
 func New[V any, F comparable](test func(value V, filter F) bool, maximumSize int) *SkipFilter[V, F] {
 	sf := &SkipFilter[V, F]{
 		idx:  make(map[interface{}]uint64),
