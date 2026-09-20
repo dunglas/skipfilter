@@ -5,14 +5,14 @@ import (
 	"testing"
 )
 
-func TestSkipFilter(t *testing.T) { // nolint:gocyclo
+func TestSkipFilter(t *testing.T) { //nolint:gocyclo
 	t.Run("New", func(t *testing.T) {
 		var sf *SkipFilter[int, int]
 		t.Run("success", func(t *testing.T) {
 			test := func(_, _ int) bool {
 				return true
 			}
-			for i, n := range []int{0, 10} {
+			for i, n := range []int{-1, 0, 10} {
 				t.Run(fmt.Sprintf("size %d", n), func(t *testing.T) {
 					sf = New[int, int](test, n)
 					if sf == nil {
@@ -88,6 +88,23 @@ func TestSkipFilter(t *testing.T) { // nolint:gocyclo
 				t.Fatalf("Expected 0 results, received (%d)", len(res))
 			}
 		})
+	})
+	t.Run("no cache", func(t *testing.T) {
+		sf := New(modTest, -1)
+		for i := 0; i < 10; i++ {
+			sf.Add(i)
+		}
+		if res := sf.MatchAny(2); len(res) != 5 {
+			t.Fatalf("Expected 5 results, received (%d)", len(res))
+		}
+		sf.Add(10)
+		if res := sf.MatchAny(2); len(res) != 6 {
+			t.Fatalf("Expected 6 results, received (%d)", len(res))
+		}
+		sf.Remove(0)
+		if res := sf.MatchAny(2); len(res) != 5 {
+			t.Fatalf("Expected 5 results, received (%d)", len(res))
+		}
 	})
 	t.Run("Walk", func(t *testing.T) {
 		sf := New(modTest, 10)

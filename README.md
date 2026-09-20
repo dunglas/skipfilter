@@ -7,7 +7,7 @@ This package provides a data structure that combines a skip list with a roaring 
 
 > [!NOTE]
 >
-> This a maintained and improved fork of [github.com/kevburnsjr/skipfilter](https://github.com/kevburnsjr/skipfilter)
+> This is a maintained and improved fork of [github.com/kevburnsjr/skipfilter](https://github.com/kevburnsjr/skipfilter)
 
 This library was created to efficiently filter a multi-topic message input stream against a set of subscribers,
 each having a list of topic subscriptions expressed as regular expressions. Ideally, each subscriber should test
@@ -17,6 +17,6 @@ In this case, the skip list provides an efficient discontinuous slice of subscri
 topic provides an efficient ordered discontinuous set of all subscribers that have indicated that they wish to
 receive messages on the topic.
 
-Filter bitmaps are stored in a cache of variable size (default to unlimited).
+Filter bitmaps are stored in a cache of variable size (unlimited by default, so nothing is evicted; set to a negative value to disable the cache).
 
 This package is thread-safe.
