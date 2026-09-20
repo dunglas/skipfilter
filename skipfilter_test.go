@@ -5,7 +5,7 @@ import (
 	"testing"
 )
 
-func TestSkipFilter(t *testing.T) { // nolint:gocyclo
+func TestSkipFilter(t *testing.T) { //nolint:gocyclo
 	t.Run("New", func(t *testing.T) {
 		var sf *SkipFilter[int, int]
 		t.Run("success", func(t *testing.T) {
