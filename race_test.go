@@ -10,7 +10,7 @@ import (
 // MatchAny both reads a filter's bitmap and, when it finds ids of removed
 // values, writes to it. Concurrent callers therefore read one filter while
 // another prunes it, so every access to the bitmap has to be guarded.
-func TestMatchAnyConcurrent(t *testing.T) {
+func TestMatchAnyConcurrent(_ *testing.T) {
 	sf := skipfilter.New(func(value, filter int) bool {
 		return value%filter == 0
 	}, 100)
