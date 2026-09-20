@@ -69,9 +69,7 @@ func (sf *SkipFilter[V, F]) MatchAny(filterKeys ...F) []V {
 	var filters = make([]*filter, len(filterKeys))
 	// The union is built into a bitmap of our own, each filter read under its
 	// own lock: sf.mutex is shared, so a concurrent MatchAny may be pruning
-	// these very bitmaps below. Handing the filters' bitmaps to ParOr instead
-	// read them unguarded, and ParOr returns the sole input as is when given
-	// one, which then aliased a filter another call was still mutating.
+	// these very bitmaps below.
 	var set = roaring64.New()
 	for i, k := range filterKeys {
 		f := sf.getFilter(k)
@@ -124,14 +122,11 @@ func (sf *SkipFilter[V, F]) Walk(start uint64, callback func(val V) bool) uint64
 }
 
 func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
-	var f *filter
-	val, ok := sf.cache.GetIfPresent(k)
-	if ok {
-		f = val
-	} else {
-		f = &filter{i: 0, set: roaring64.New()}
-		sf.cache.Set(k, f)
-	}
+	// Computed under the cache's bucket lock so concurrent callers share one
+	// filter instead of each scanning the whole list into a copy of their own.
+	f, _ := sf.cache.ComputeIfAbsent(k, func() (*filter, bool) {
+		return &filter{i: 0, set: roaring64.New()}, false
+	})
 	var id uint64
 	var prev uint64
 	var first = true
