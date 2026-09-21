@@ -7,9 +7,7 @@ import (
 	"github.com/dunglas/skipfilter"
 )
 
-// MatchAny both reads a filter's bitmap and, when it finds ids of removed
-// values, writes to it. Concurrent callers therefore read one filter while
-// another prunes it, so every access to the bitmap has to be guarded.
+// MatchAny prunes removed ids from the bitmaps it reads, so concurrent callers race.
 func TestMatchAnyConcurrent(_ *testing.T) {
 	sf := skipfilter.New(func(value, filter int) bool {
 		return value%filter == 0
@@ -23,8 +21,7 @@ func TestMatchAnyConcurrent(_ *testing.T) {
 
 	var wg sync.WaitGroup
 
-	// Removals leave ids in the filters, which is what makes MatchAny prune
-	// them on the next call.
+	// Removals leave ids behind, which is what makes MatchAny prune on the next call.
 	wg.Add(1)
 
 	go func() {

@@ -23,9 +23,8 @@ type SkipFilter[V any, F comparable] struct {
 // New creates a new SkipFilter.
 //
 // The test function should return true if the value passes the provided filter.
-// The maximumSize parameter controls the maximum size of the cache: 0 keeps every filter bitmap,
-// a negative value disables the cache. When positive, it should be tuned to match or exceed the
-// expected filter cardinality.
+// maximumSize caps the cache: 0 keeps every filter bitmap, a negative value disables
+// the cache, a positive one should match or exceed the expected filter cardinality.
 func New[V any, F comparable](test func(value V, filter F) bool, maximumSize int) *SkipFilter[V, F] {
 	sf := &SkipFilter[V, F]{
 		idx:  make(map[interface{}]uint64),
@@ -72,9 +71,7 @@ func (sf *SkipFilter[V, F]) MatchAny(filterKeys ...F) []V {
 	sf.mutex.RLock()
 	defer sf.mutex.RUnlock()
 	var filters = make([]*filter, len(filterKeys))
-	// The union is built into a bitmap of our own, each filter read under its
-	// own lock: sf.mutex is shared, so a concurrent MatchAny may be pruning
-	// these very bitmaps below.
+	// Each filter is read under its own lock: a concurrent MatchAny may be pruning it.
 	var set = roaring64.New()
 	for i, k := range filterKeys {
 		f := sf.getFilter(k)
@@ -129,8 +126,7 @@ func (sf *SkipFilter[V, F]) Walk(start uint64, callback func(val V) bool) uint64
 func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 	var f *filter
 	if sf.cache != nil {
-		// Computed under the cache's bucket lock so concurrent callers share one
-		// filter instead of each scanning the whole list into a copy of their own.
+		// Computed under the cache's lock so concurrent misses don't each rescan the list.
 		f, _ = sf.cache.ComputeIfAbsent(k, func() (*filter, bool) {
 			return &filter{i: 0, set: roaring64.New()}, false
 		})
@@ -144,9 +140,7 @@ func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 	if atomic.LoadUint64(&f.i) < sf.i {
 		f.mutex.Lock()
 		defer f.mutex.Unlock()
-		// Re-read now that the write lock is held: another caller may have
-		// brought the filter up to date between the check and the lock, and
-		// re-scanning from a stale f.i would repeat its work.
+		// Another caller may have brought the filter up to date while we waited.
 		if atomic.LoadUint64(&f.i) >= sf.i {
 			return f
 		}
