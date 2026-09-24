@@ -68,13 +68,26 @@ func (sf *SkipFilter[V, F]) Len() int {
 
 // MatchAny returns a slice of values in the set matching any of the provided filters
 func (sf *SkipFilter[V, F]) MatchAny(filterKeys ...F) []V {
+	return sf.matchAny(filterKeys, sf.test)
+}
+
+// MatchFunc returns the values in the set passing test, which replaces the test given to New for this call.
+// It lets filterKey be a compact key, such as a digest, for a filter too large to keep in the cache.
+// Results are cached under filterKey, so test must agree with every other test used with the same key.
+func (sf *SkipFilter[V, F]) MatchFunc(filterKey F, test func(value V) bool) []V {
+	return sf.matchAny([]F{filterKey}, func(v V, _ F) bool {
+		return test(v)
+	})
+}
+
+func (sf *SkipFilter[V, F]) matchAny(filterKeys []F, test func(V, F) bool) []V {
 	sf.mutex.RLock()
 	defer sf.mutex.RUnlock()
 	var filters = make([]*filter, len(filterKeys))
 	// Each filter is read under its own lock: a concurrent MatchAny may be pruning it.
 	var set = roaring64.New()
 	for i, k := range filterKeys {
-		f := sf.getFilter(k)
+		f := sf.getFilter(k, test)
 		filters[i] = f
 		f.mutex.RLock()
 		set.Or(f.set)
@@ -123,7 +136,7 @@ func (sf *SkipFilter[V, F]) Walk(start uint64, callback func(val V) bool) uint64
 	return id
 }
 
-func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
+func (sf *SkipFilter[V, F]) getFilter(k F, test func(V, F) bool) *filter {
 	var f *filter
 	if sf.cache != nil {
 		// Computed under the cache's lock so concurrent misses don't each rescan the list.
@@ -149,7 +162,7 @@ func (sf *SkipFilter[V, F]) getFilter(k F) *filter {
 				// skiplist loops back to first element so we have to detect loop and break manually
 				break
 			}
-			if sf.test(el.GetValue().(*entry[V]).val, k) {
+			if test(el.GetValue().(*entry[V]).val, k) {
 				f.set.Add(id)
 			}
 			prev = id

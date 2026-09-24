@@ -89,6 +89,29 @@ func TestSkipFilter(t *testing.T) { //nolint:gocyclo
 			}
 		})
 	})
+	t.Run("MatchFunc", func(t *testing.T) {
+		sf := New[int, string](nil, 10)
+		for i := 0; i < 10; i++ {
+			sf.Add(i)
+		}
+		even := func(v int) bool { return v%2 == 0 }
+		if res := sf.MatchFunc("even", even); len(res) != 5 {
+			t.Fatalf("Expected 5 results, received (%d)", len(res))
+		}
+		// Only values added since the last call are tested against the cached filter.
+		sf.Add(10)
+		sf.Add(11)
+		if res := sf.MatchFunc("even", even); len(res) != 6 {
+			t.Fatalf("Expected 6 results, received (%d)", len(res))
+		}
+		sf.Remove(0)
+		if res := sf.MatchFunc("even", even); len(res) != 5 {
+			t.Fatalf("Expected 5 results, received (%d)", len(res))
+		}
+		if res := sf.MatchFunc("odd", func(v int) bool { return v%2 == 1 }); len(res) != 6 {
+			t.Fatalf("Expected 6 results, received (%d)", len(res))
+		}
+	})
 	t.Run("no cache", func(t *testing.T) {
 		sf := New(modTest, -1)
 		for i := 0; i < 10; i++ {
