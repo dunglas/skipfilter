@@ -42,6 +42,24 @@ func ExampleSkipFilter_MatchAny() {
 	// Multiples of 3: [0 3 6 9]
 }
 
+func ExampleSkipFilter_MatchFunc() {
+	sf := skipfilter.New[int, string](nil, 10)
+	for i := 0; i < 10; i++ {
+		sf.Add(i)
+	}
+	divisors := []int{2, 3}
+	fmt.Printf("Multiples of 2 or 3: %+v\n", sf.MatchFunc("2,3", func(value int) bool {
+		for _, d := range divisors {
+			if value%d == 0 {
+				return true
+			}
+		}
+		return false
+	}))
+	// Output:
+	// Multiples of 2 or 3: [0 2 3 4 6 8 9]
+}
+
 func ExampleSkipFilter_Walk_all() {
 	sf := skipfilter.New[int, int](nil, 10)
 	for i := 0; i < 10; i++ {
